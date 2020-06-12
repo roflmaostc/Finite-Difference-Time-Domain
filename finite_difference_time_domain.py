@@ -51,8 +51,7 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
     Z0 = np.sqrt(mu0/eps0)
 
     # choose dt small enough
-    dt = dx / 1 / c
-    print(dt)
+    dt = dx / 2 / c
     # time array
     t = np.arange(0, time_span, dt)
 
@@ -70,34 +69,57 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
 
     t0 = 3 * source_pulse_length
     x_index_center = np.argmax(x >= source_position)
-    print(x_index_center)
-
+    print("xindex, center", x_index_center)
     # function to create jz at different points in time
     def jz_f(n):
         # current time
-        t = dt * (n + 0.5)
+        t = dt * (n)
         jz = np.zeros(len(x), dtype=np.complex128)
         # set center to source
         jz[x_index_center] = np.exp(-2 * np.pi * 1j * source_frequency * t) *\
                              np.exp(-(t - t0) ** 2 / source_pulse_length ** 2)
         return jz
-    # set initial electrical field
-    jz = jz_f(0)
-    print(jz)
-    Ez[1:-1, 0] = jz[1:-1]
-
-
     # update iterations
     for n in range(1, len(t)):
-        jz = jz_f(n)
-        Ez[1:-1, n] = Ez[1:-1, n - 1] + 1 / (eps_rel[1:-1] * eps0 ** 2) * dt /\
-                      dx * (Hy[1:, n - 1] - Hy[0:-1, n - 1]) -\
-                      dt / (eps_rel[1:-1] * eps0 **2) * jz[1:-1]
+        jz = jz_f(n - 1)
+        # print(jz.shape)
+        # print(Ez.shape)
+        Ez[1:-1, n] = Ez[1:-1, n - 1] + 1 / (eps_rel[1:-1] * eps0) * dt /\
+                      dx * (Hy[1:, n - 1] - Hy[:-1, n - 1]) -\
+                      dt / (eps_rel[1:-1] * eps0) * jz[1:-1]
         Hy[:, n] = Hy[:, n - 1] + 1 / mu0 * dt / dx *\
                    (Ez[1:, n]  - Ez[:-1, n])
 
+
+ #   x_new = np.linspace(- x_width / 2, x_width / 2, 2 * len(eps_rel))
+
+ #   Ez_new = np.zeros((2 * len(x), len(t)), dtype=np.complex128)
+ #   Ez_new[::2] = Ez
+ #   # simple linear interpolation between the field points
+ #   Ez_new[1:-1:2] = (Ez[:-1] + Ez[1:]) / 2
     
-    return Ez[:-1], Hy, x[:-1], t
+    # create output magnetic Hy with boundaries left and right
+    Hy_new = np.copy(Hy)#np.zeros((len(x) + 1, len(t)), dtype=np.complex128)
+    Hy_new = np.concatenate((np.array([Hy[0, :]]),\
+                             Hy[:, :],\
+                             np.array([Hy[-1, :]])),\
+                            axis=0)
+
+    # create another column for the first time step
+    Hy_new2 = np.zeros((len(x) + 1, len(t) + 1), dtype=np.complex128)
+    Hy_new2[:, 1:] = Hy_new
+    Hy_new2[:, 0] = Hy_new[:, 0]
+    Hy_new = Hy_new2
+    
+    # simple linear 4 point interpolation between the field points
+    Hy_new = (Hy_new[:-1, :-1] + Hy_new[1:, :-1] + \
+              Hy_new[:-1, 1:] + Hy_new[1:, 1:]) / 4
+
+    Ez = np.swapaxes(Ez, 0, 1)
+    Hy_new = np.swapaxes(Hy_new, 1, 0)
+
+    return Ez, Hy_new, x, t
+
 
 def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
             field_component, z_ind, output_step):

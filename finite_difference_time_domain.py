@@ -63,13 +63,12 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
     # however, we represent them as a simple array
     # we just need to keep in mind that they are shifted by half a index step
     # create output electric Ez
-    Ez = np.zeros((len(x), len(t)), dtype=np.complex128)
+    Ez = np.zeros((len(t), len(x)), dtype=np.complex128)
     # create output magnetic Hy
-    Hy = np.zeros((len(x) - 1, len(t)), dtype=np.complex128)
+    Hy = np.zeros((len(t), len(x) - 1), dtype=np.complex128)
 
     t0 = 3 * source_pulse_length
     x_index_center = np.argmax(x >= source_position)
-    print("xindex, center", x_index_center)
     # function to create jz at different points in time
     def jz_f(n):
         # current time
@@ -79,44 +78,28 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
         jz[x_index_center] = np.exp(-2 * np.pi * 1j * source_frequency * t) *\
                              np.exp(-(t - t0) ** 2 / source_pulse_length ** 2)
         return jz
-    # update iterations
+
+    # iterate over time
     for n in range(1, len(t)):
         jz = jz_f(n - 1)
-        # print(jz.shape)
-        # print(Ez.shape)
-        Ez[1:-1, n] = Ez[1:-1, n - 1] + 1 / (eps_rel[1:-1] * eps0) * dt /\
-                      dx * (Hy[1:, n - 1] - Hy[:-1, n - 1]) -\
+        Ez[n, 1:-1] = Ez[n - 1, 1:-1] + 1 / (eps_rel[1:-1] * eps0) * dt /\
+                      dx * (Hy[n - 1, 1:] - Hy[n - 1, :-1]) +\
                       dt / (eps_rel[1:-1] * eps0) * jz[1:-1]
-        Hy[:, n] = Hy[:, n - 1] + 1 / mu0 * dt / dx *\
-                   (Ez[1:, n]  - Ez[:-1, n])
+        Hy[n, :] = Hy[n-1 , :] + 1 / mu0 * dt / dx *\
+                   (Ez[n, 1:]  - Ez[n, :-1])
 
+    # first we attach boundary conditions and therefore mirror
+    # the values on the boundary
+    Hy_new = np.c_[Hy[:, 0], Hy, Hy[:, -1]]
 
- #   x_new = np.linspace(- x_width / 2, x_width / 2, 2 * len(eps_rel))
+    # double the field at t=0 to make 4 point stencil interpolation
+    # possible
+    Hy_new = np.concatenate((np.array([Hy_new[0]]), Hy_new), axis=0)
 
- #   Ez_new = np.zeros((2 * len(x), len(t)), dtype=np.complex128)
- #   Ez_new[::2] = Ez
- #   # simple linear interpolation between the field points
- #   Ez_new[1:-1:2] = (Ez[:-1] + Ez[1:]) / 2
-    
-    # create output magnetic Hy with boundaries left and right
-    Hy_new = np.copy(Hy)#np.zeros((len(x) + 1, len(t)), dtype=np.complex128)
-    Hy_new = np.concatenate((np.array([Hy[0, :]]),\
-                             Hy[:, :],\
-                             np.array([Hy[-1, :]])),\
-                            axis=0)
-
-    # create another column for the first time step
-    Hy_new2 = np.zeros((len(x) + 1, len(t) + 1), dtype=np.complex128)
-    Hy_new2[:, 1:] = Hy_new
-    Hy_new2[:, 0] = Hy_new[:, 0]
-    Hy_new = Hy_new2
-    
     # simple linear 4 point interpolation between the field points
     Hy_new = (Hy_new[:-1, :-1] + Hy_new[1:, :-1] + \
               Hy_new[:-1, 1:] + Hy_new[1:, 1:]) / 4
 
-    Ez = np.swapaxes(Ez, 0, 1)
-    Hy_new = np.swapaxes(Hy_new, 1, 0)
 
     return Ez, Hy_new, x, t
 

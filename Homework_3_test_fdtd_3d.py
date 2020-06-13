@@ -45,7 +45,7 @@ y = np.arange(-int(np.ceil((Ny-1)/2)), int(np.floor((Ny-1)/2)) + 1)*dr
 freq = 500e12 # pulse [Hz]
 tau = 1e-15 # pulse width [s]
 t0 = 3 * tau
-source_width = 2 # width of Gaussian current dist. [grid points]
+source_width = 2 * dr # width of Gaussian current dist. [grid points]
 
 # grid midpoints
 midx = int(np.ceil((Nx-1)/2))
@@ -83,11 +83,10 @@ output_step = 4  # time steps between field output
 #%% run simulations %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-F, t = fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz, "ex",
+Hx, Ez, t = fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz, "ex",
                z_ind, output_step)
 
-Hx = F
-
+print(Hx.shape)
 #%% movie of Hx %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 F = Hx*Z0*1e6
 titlestr = 'x-Component of Magnetic Field'
@@ -95,10 +94,10 @@ cb_label = '$\\Re\\{Z_0H_x\\}$ [µV/m]'
 rel_color_range = 1/3
 fps = 10
 
-ani = Fdtd3DAnimation(x, y, t, F, titlestr, cb_label, rel_color_range, fps)
-plt.show()
+# ani = Fdtd3DAnimation(x, y, t, F, titlestr, cb_label, rel_color_range, fps)
+# plt.show()
 
-#%% movie of Ez %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+##%% movie of Ez %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 F = Ez*1e6
 titlestr = 'z-Component of Electric Field'
 cb_label = '$\\Re\\{E_z\\}$ [µV/m]'

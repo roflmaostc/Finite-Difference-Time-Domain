@@ -47,8 +47,6 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
     mu0 = 4*np.pi*1e-7
     # vacuum permittivity [eps0]=As/(Vm)
     eps0 = 1/(mu0*c**2)
-    # vacuum impedance [Z0]=Ohm
-    Z0 = np.sqrt(mu0/eps0)
 
     # choose dt small enough
     dt = dx / 2 / c
@@ -70,6 +68,7 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
     t0 = 3 * source_pulse_length
     x_index_center = np.argmax(x >= source_position)
     # function to create jz at different points in time
+
     def jz_f(n):
         # current time
         t = dt * (n)
@@ -143,7 +142,92 @@ def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
         t: 1d-array
             Time of the field output.
     '''
-    pass
+    # size of the different dimensions
+    Nx, Ny, Nz = eps_rel.shape
+    jz_in = np.copy(jz)
+    dtype = np.complex128
+    # speed of light [c]=m/s
+    c = 2.99792458e8
+    # vacuum permeability [mu0]=Vs/(Am)
+    mu0 = 4*np.pi*1e-7
+    # vacuum permittivity [eps0]=As/(Vm)
+    eps0 = 1/(mu0*c**2)
+    # vacuum impedance [Z0]=Ohm
+    Z0 = np.sqrt(mu0/eps0)
+
+    # choose dt small enough
+    dt = dr / 2 / c
+    # time array
+    t = np.arange(0, time_span, dt)
+
+    # create empty arrays for the 6 field components
+    Ex = np.zeros((len(t), Nx - 1, Ny, Nz), dtype=dtype)
+    Ey = np.zeros((len(t), Nx, Ny - 1, Nz), dtype=dtype)
+    Ez = np.zeros((len(t), Nx, Ny, Nz - 1), dtype=dtype)
+    Hx = np.zeros((len(t), Nx, Ny - 1, Nz - 1), dtype=dtype)
+    Hy = np.zeros((len(t), Nx - 1, Ny, Nz - 1), dtype=dtype)
+    Hz = np.zeros((len(t), Nx - 1, Ny - 1, Nz), dtype=dtype)
+
+    t0 = 3 * tau
+    # function to calculate jz at any time position
+    def jz_f(n):
+        # current time
+        t = dt * (n)
+        # get the current jz
+        jz = jz_in * np.exp(- 2 * np.pi * 1j * freq * t) *\
+              np.exp(- (t - t0) ** 2 / tau ** 2)
+
+        return jz
+
+    # interpolate epsilon for the different directions
+    def interpol_eps(dir):
+        if dir == "i":
+            return 0.5 * (1 / eps_rel[1:, :, :] + 1 / eps_rel[:-1, :, :])
+        if dir == "j":
+            return 0.5 * (1 / eps_rel[:, 1:, :] + 1 / eps_rel[:, :-1, :])
+        if dir == "k":
+            return 0.5 * (1 / eps_rel[:, :, 1:] + 1 / eps_rel[:, :, :-1])
+
+
+    for n in range(1, len(t)):
+        jz = jz_f(n - 1)
+        Ex[n, :, 1:-1, 1:-1] = Ex[n - 1, :, 1:-1, 1:-1]\
+            + dt / (interpol_eps("i")[:, 1:-1, 1:-1] * eps0) * \
+              ((Hz[n - 1, :, 1:, 1:-1] - Hz[n - 1, :, :-1, 1:-1]
+                - Hy[n - 1, :, 1:-1, 1:] + Hy[n - 1, :, 1:-1, :-1]) / dr -
+               jx[1:, 1:-1, 1:-1])
+       
+        Ey[n, 1:-1, :, 1:-1] = Ey[n - 1, 1:-1, :, 1:-1]\
+            + dt / (interpol_eps("j")[1:-1, :, 1:-1] * eps0) * \
+              ((Hx[n - 1, 1:-1, :, 1:] - Hx[n - 1, 1:-1, :, :-1]
+                - Hz[n - 1, 1:, :, 1:-1] + Hz[n - 1, :-1, :, 1:-1]) / dr -
+               jy[1:-1, 1:, 1:-1])
+
+        Ez[n, 1:-1, 1:-1, :] = Ez[n - 1, 1:-1, 1:-1, :]\
+            + dt / (interpol_eps("k")[1:-1, 1:-1, :] * eps0) * \
+              ((Hy[n - 1, 1:, 1:-1, :] - Hy[n - 1, :-1, 1:-1, :]
+              - Hx[n - 1, 1:-1, 1:, :] + Hx[n - 1, 1:-1, :-1, :]) / dr -
+           jz[1:-1, 1:-1, 1:])
+
+        Hx[n, 1:-1, :, :] = Hx[n, 1:-1, :, :] +\
+                            dt / mu0 / dr *(
+            Ey[n, 1:-1, :, 1:] - Ey[n, 1:-1, :, :1] - 
+            Ez[n, 1:-1, 1:, :] + Ez[n, 1:-1, :-1, :])
+
+        Hx[n, 1:-1, :, :] = Hx[n, 1:-1, :, :] +\
+                            dt / mu0 / dr *(
+            Ey[n, 1:-1, :, 1:] - Ey[n, 1:-1, :, :1] - 
+            Ez[n, 1:-1, 1:, :] + Ez[n, 1:-1, :-1, :])
+
+        Hx[n, 1:-1, :, :] = Hx[n, 1:-1, :, :] +\
+                            dt / mu0 / dr *(
+            Ey[n, 1:-1, :, 1:] - Ey[n, 1:-1, :, :1] - 
+            Ez[n, 1:-1, 1:, :] + Ez[n, 1:-1, :-1, :])
+
+
+
+    return Ex, t
+
 
 
 class Fdtd1DAnimation(animation.TimedAnimation):

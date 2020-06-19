@@ -159,14 +159,15 @@ def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
     dt = dr / 2 / c
     # time array
     t = np.arange(0, time_span, dt)
+    t_out = np.arange(0, time_span, dt * output_step)
 
     # create empty arrays for the 6 field components
-    Ex = np.zeros((len(t), Nx - 1, Ny, Nz), dtype=dtype)
-    Ey = np.zeros((len(t), Nx, Ny - 1, Nz), dtype=dtype)
-    Ez = np.zeros((len(t), Nx, Ny, Nz - 1), dtype=dtype)
-    Hx = np.zeros((len(t), Nx, Ny - 1, Nz - 1), dtype=dtype)
-    Hy = np.zeros((len(t), Nx - 1, Ny, Nz - 1), dtype=dtype)
-    Hz = np.zeros((len(t), Nx - 1, Ny - 1, Nz), dtype=dtype)
+    Ex = np.zeros((len(t_out), Nx - 1, Ny, Nz), dtype=dtype)
+    Ey = np.zeros((len(t_out), Nx, Ny - 1, Nz), dtype=dtype)
+    Ez = np.zeros((len(t_out), Nx, Ny, Nz - 1), dtype=dtype)
+    Hx = np.zeros((len(t_out), Nx, Ny - 1, Nz - 1), dtype=dtype)
+    Hy = np.zeros((len(t_out), Nx - 1, Ny, Nz - 1), dtype=dtype)
+    Hz = np.zeros((len(t_out), Nx - 1, Ny - 1, Nz), dtype=dtype)
 
     # time shift of the pulse
     t0 = 3 * tau
@@ -190,49 +191,62 @@ def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
         if dir == "k":
             return 0.5 * (1 / eps_rel[:, :, 1:] + 1 / eps_rel[:, :, :-1])
 
+    # variables to store temporarily the fields
+    Ex_n, Ey_n, Ez_n, Hx_n, Hy_n, Hz_n = \
+        np.copy(Ex[0]), np.copy(Ey[0]), np.copy(Ez[0]),\
+        np.copy(Hx[0]), np.copy(Hy[0]), np.copy(Hz[0])
 
     # for loop for the simulating the time steps
-    for n in range(1, len(t)):
+    for n in range(len(t)):
         # get the new current
-        jz = jz_f(n - 1)
+        jz = jz_f(n)
+        # save fields at every output_step times
+        if n % output_step == 0:
+            Ex[n // output_step] = np.copy(Ex_n)
+            Ey[n // output_step] = np.copy(Ey_n)
+            Ez[n // output_step] = np.copy(Ez_n)
+            Hx[n // output_step] = np.copy(Hx_n)
+            Hy[n // output_step] = np.copy(Hy_n)
+            Hz[n // output_step] = np.copy(Hz_n)
+
 
         # update the E fields
-        Ex[n, :, 1:-1, 1:-1] = Ex[n - 1, :, 1:-1, 1:-1]\
+        Ex_n[:, 1:-1, 1:-1] = Ex_n[:, 1:-1, 1:-1]\
             + dt / (interpol_eps("i")[:, 1:-1, 1:-1] * eps0) * \
-              ((Hz[n - 1, :, 1:, 1:-1] - Hz[n - 1, :, :-1, 1:-1]
-              - Hy[n - 1, :, 1:-1, 1:] + Hy[n - 1, :, 1:-1, :-1]) / dr -
+              ((Hz_n[:, 1:, 1:-1] - Hz_n[:, :-1, 1:-1]
+              - Hy_n[:, 1:-1, 1:] + Hy_n[:, 1:-1, :-1]) / dr -
                jx[1:, 1:-1, 1:-1])
 
-        Ey[n, 1:-1, :, 1:-1] = Ey[n - 1, 1:-1, :, 1:-1]\
+        Ey_n[1:-1, :, 1:-1] = Ey_n[1:-1, :, 1:-1]\
             + dt / (interpol_eps("j")[1:-1, :, 1:-1] * eps0) * \
-              ((Hx[n - 1, 1:-1, :, 1:] - Hx[n - 1, 1:-1, :, :-1]
-              - Hz[n - 1, 1:, :, 1:-1] + Hz[n - 1, :-1, :, 1:-1]) / dr -
+              ((Hx_n[1:-1, :, 1:] - Hx_n[1:-1, :, :-1]
+              - Hz_n[1:, :, 1:-1] + Hz_n[:-1, :, 1:-1]) / dr -
                jy[1:-1, 1:, 1:-1])
 
-        Ez[n, 1:-1, 1:-1, :] = Ez[n - 1, 1:-1, 1:-1, :]\
+        Ez_n[1:-1, 1:-1, :] = Ez_n[1:-1, 1:-1, :]\
             + dt / (interpol_eps("k")[1:-1, 1:-1, :] * eps0) * \
-              ((Hy[n - 1, 1:, 1:-1, :] - Hy[n - 1, :-1, 1:-1, :]
-              - Hx[n - 1, 1:-1, 1:, :] + Hx[n - 1, 1:-1, :-1, :]) / dr -
+              ((Hy_n[1:, 1:-1, :] - Hy_n[:-1, 1:-1, :]
+              - Hx_n[1:-1, 1:, :] + Hx_n[1:-1, :-1, :]) / dr -
            jz[1:-1, 1:-1, 1:])
 
         # update the H fields
-        Hx[n, 1:-1, :, :] = Hx[n - 1, 1:-1, :, :] +\
+        Hx_n[1:-1, :, :] = Hx_n[1:-1, :, :] +\
                             dt / mu0 / dr *(
-            Ey[n, 1:-1, :, 1:] - Ey[n, 1:-1, :, :-1] -
-            Ez[n, 1:-1, 1:, :] + Ez[n, 1:-1, :-1, :])
+            Ey_n[1:-1, :, 1:] - Ey_n[1:-1, :, :-1] -
+            Ez_n[1:-1, 1:, :] + Ez_n[1:-1, :-1, :])
 
-        Hy[n, :, 1:-1, :] = Hy[n - 1, :, 1:-1, :] +\
+        Hy_n[:, 1:-1, :] = Hy_n[:, 1:-1, :] +\
                             dt / mu0 / dr *(
-            Ez[n, 1:, 1:-1, :] - Ez[n, :-1, 1:-1, :] -
-            Ex[n, :, 1:-1, 1:] + Ex[n, :, 1:-1, :-1])
+            Ez_n[1:, 1:-1, :] - Ez_n[:-1, 1:-1, :] -
+            Ex_n[:, 1:-1, 1:] + Ex_n[:, 1:-1, :-1])
 
-        Hz[n, :, :, 1:-1] = Hz[n - 1, :, :, 1:-1] +\
+        Hz_n[:, :, 1:-1] = Hz_n[:, :, 1:-1] +\
                             dt / mu0 / dr *(
-            Ex[n, :, 1:, 1:-1] - Ex[n, :, :-1, 1:-1] -
-            Ey[n, 1:, :, 1:-1] + Ey[n, :-1, :, 1:-1])
+            Ex_n[:, 1:, 1:-1] - Ex_n[:, :-1, 1:-1] -
+            Ey_n[1:, :, 1:-1] + Ey_n[:-1, :, 1:-1])
 
 
-    return Hx[:, :, :, z_ind], Ez[:, :, :, z_ind], t
+    return Hx[:, :, :, z_ind], Ez[:, :, :, z_ind], t_out
 
 
 

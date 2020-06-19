@@ -82,7 +82,7 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
     for n in range(1, len(t)):
         jz = jz_f(n - 1)
         Ez[n, 1:-1] = Ez[n - 1, 1:-1] + 1 / (eps_rel[1:-1] * eps0) * dt /\
-                      dx * (Hy[n - 1, 1:] - Hy[n - 1, :-1]) +\
+                      dx * (Hy[n - 1, 1:] - Hy[n - 1, :-1]) -\
                       dt / (eps_rel[1:-1] * eps0) * jz[1:-1]
         Hy[n, :] = Hy[n-1 , :] + 1 / mu0 * dt / dx *\
                    (Ez[n, 1:]  - Ez[n, :-1])
@@ -168,14 +168,16 @@ def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
     Hy = np.zeros((len(t), Nx - 1, Ny, Nz - 1), dtype=dtype)
     Hz = np.zeros((len(t), Nx - 1, Ny - 1, Nz), dtype=dtype)
 
+    # time shift of the pulse
     t0 = 3 * tau
+
     # function to calculate jz at any time position
     def jz_f(n):
         # current time
         t = dt * (n)
         # get the current jz
         jz = jz_in * np.exp(- 2 * np.pi * 1j * freq * t) *\
-              np.exp(- (t - t0) ** 2 / tau ** 2)
+             np.exp(- (t - t0) ** 2 / tau ** 2)
 
         return jz
 
@@ -189,18 +191,22 @@ def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
             return 0.5 * (1 / eps_rel[:, :, 1:] + 1 / eps_rel[:, :, :-1])
 
 
+    # for loop for the simulating the time steps
     for n in range(1, len(t)):
+        # get the new current
         jz = jz_f(n - 1)
+
+        # update the E fields
         Ex[n, :, 1:-1, 1:-1] = Ex[n - 1, :, 1:-1, 1:-1]\
             + dt / (interpol_eps("i")[:, 1:-1, 1:-1] * eps0) * \
               ((Hz[n - 1, :, 1:, 1:-1] - Hz[n - 1, :, :-1, 1:-1]
-                - Hy[n - 1, :, 1:-1, 1:] + Hy[n - 1, :, 1:-1, :-1]) / dr -
+              - Hy[n - 1, :, 1:-1, 1:] + Hy[n - 1, :, 1:-1, :-1]) / dr -
                jx[1:, 1:-1, 1:-1])
-       
+
         Ey[n, 1:-1, :, 1:-1] = Ey[n - 1, 1:-1, :, 1:-1]\
             + dt / (interpol_eps("j")[1:-1, :, 1:-1] * eps0) * \
               ((Hx[n - 1, 1:-1, :, 1:] - Hx[n - 1, 1:-1, :, :-1]
-                - Hz[n - 1, 1:, :, 1:-1] + Hz[n - 1, :-1, :, 1:-1]) / dr -
+              - Hz[n - 1, 1:, :, 1:-1] + Hz[n - 1, :-1, :, 1:-1]) / dr -
                jy[1:-1, 1:, 1:-1])
 
         Ez[n, 1:-1, 1:-1, :] = Ez[n - 1, 1:-1, 1:-1, :]\
@@ -209,17 +215,18 @@ def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
               - Hx[n - 1, 1:-1, 1:, :] + Hx[n - 1, 1:-1, :-1, :]) / dr -
            jz[1:-1, 1:-1, 1:])
 
-        Hx[n, 1:-1, :, :] = Hx[n, 1:-1, :, :] +\
+        # update the H fields
+        Hx[n, 1:-1, :, :] = Hx[n - 1, 1:-1, :, :] +\
                             dt / mu0 / dr *(
             Ey[n, 1:-1, :, 1:] - Ey[n, 1:-1, :, :-1] -
             Ez[n, 1:-1, 1:, :] + Ez[n, 1:-1, :-1, :])
 
-        Hy[n, :, 1:-1, :] = Hy[n, :, 1:-1, :] +\
+        Hy[n, :, 1:-1, :] = Hy[n - 1, :, 1:-1, :] +\
                             dt / mu0 / dr *(
             Ez[n, 1:, 1:-1, :] - Ez[n, :-1, 1:-1, :] -
             Ex[n, :, 1:-1, 1:] + Ex[n, :, 1:-1, :-1])
 
-        Hz[n, :, :, 1:-1] = Hz[n, :, :, 1:-1] +\
+        Hz[n, :, :, 1:-1] = Hz[n - 1, :, :, 1:-1] +\
                             dt / mu0 / dr *(
             Ex[n, :, 1:, 1:-1] - Ex[n, :, :-1, 1:-1] -
             Ey[n, 1:, :, 1:-1] + Ey[n, :-1, :, 1:-1])

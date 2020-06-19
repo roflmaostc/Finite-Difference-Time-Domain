@@ -246,7 +246,62 @@ def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
             Ey_n[1:, :, 1:-1] + Ey_n[:-1, :, 1:-1])
 
 
-    return Hx[:, :, :, z_ind], Ez[:, :, :, z_ind], t_out
+    # interpolation of the final fields
+    Ex_out = np.zeros((len(t_out), Nx, Ny, Nz), dtype=dtype)
+    Ey_out = np.zeros((len(t_out), Nx, Ny, Nz), dtype=dtype)
+    Ez_out = np.zeros((len(t_out), Nx, Ny, Nz), dtype=dtype)
+    Hx_out = np.zeros((len(t_out), Nx, Ny, Nz), dtype=dtype)
+    Hy_out = np.zeros((len(t_out), Nx, Ny, Nz), dtype=dtype)
+    Hz_out = np.zeros((len(t_out), Nx, Ny, Nz), dtype=dtype)
+
+    # set the boundaries for E fields
+    Ex_out[:, 1:] = Ex
+    Ex_out[:, 0] = Ex[:, 0]
+    Ey_out[:, :, 1:] = Ey
+    Ey_out[:, :, 0] = Ey[:, :, 0]
+    Ez_out[:, :, :, 1:] = Ez
+    Ez_out[:, :, :, 0] = Ez[:, :, :, 0]
+
+    # set the boundaries for H
+    Hx_out[:, :, 1:, 1:] = Hx
+    Hx_out[:, :, :, 0] = - Hx_out[:, :, :, 0]
+    Hx_out[:, :, 0, :] = - Hx_out[:, :, 0, :]
+    Hy_out[:, 1:, :, 1:] = Hy
+    Hy_out[:, :, :, 0] = - Hy_out[:, :, :, 0]
+    Hy_out[:, 0, :, :] = - Hy_out[:, 0, :, :]
+    Hz_out[:, 1:, 1:, :] = Hz
+    Hz_out[:, :, 0, :] = - Hz_out[:, :, 0, :]
+    Hz_out[:, 0, :, :] = - Hz_out[:, 0, :, :]
+
+    # interpolation of E
+    Ex_out = 0.5 * (Ex_out[:, 1:, :, :] + Ex_out[:, :-1, :, :])
+    Ey_out = 0.5 * (Ey_out[:, :, 1:, :] + Ey_out[:, :, :-1, :])
+    Ez_out = 0.5 * (Ez_out[:, :, :, 1:] + Ez_out[:, :, :, :-1])
+
+    # interpolation of H
+    Hx_out = 0.125 * (Hx_out[:-1, 1:, :-1, :-1] + Hx_out[:-1, 1:, :-1, 1:] +
+                      Hx_out[:-1, 1:, 1:, :-1] + Hx_out[:-1, 1:, 1:, 1:] +
+                      Hx_out[1:, 1:, :-1, :-1] + Hx_out[1:, 1:, :-1, 1:] +
+                      Hx_out[1:, 1:, 1:, :-1] + Hx_out[1:, 1:, 1:, 1:])
+
+    Hy_out = 0.125 * (Hy_out[:-1, :-1, 1:, :-1] + Hy_out[:-1, :-1, 1:, 1:] +
+                      Hy_out[:-1, 1:, 1:, :-1] + Hy_out[:-1, 1:, 1:, 1:] +
+                      Hy_out[1:, :-1, 1:, :-1] + Hy_out[1:, :-1, 1:, 1:] +
+                      Hy_out[1:, 1:, 1:, :-1] + Hy_out[1:, 1:, 1:, 1:])
+
+    Hz_out = 0.125 * (Hz_out[:-1, :-1, :-1, 1:] + Hz_out[:-1, :-1, 1:, 1:] +
+                      Hz_out[:-1, 1:, :-1, 1:] + Hz_out[:-1, 1:, 1:, 1:] +
+                      Hz_out[1:, :-1, :-1, 1:] + Hz_out[1:, :-1, 1:, 1:] +
+                      Hz_out[1:, 1:, :-1, 1:] + Hz_out[1:, 1:, 1:, 1:])
+
+    # return one z-slice of all fields
+    return Ex_out[1:, :, 1:, 1 + z_ind],\
+           Ey_out[1:, 1:, :, 1 + z_ind],\
+           Ez_out[1:, 1:, 1:, z_ind],\
+           Hx_out[:, :, :, z_ind],\
+           Hy_out[:, :, :, z_ind],\
+           Hz_out[:, :, :, z_ind],\
+           t_out[:-1]
 
 
 

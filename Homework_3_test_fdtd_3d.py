@@ -87,12 +87,6 @@ Ex, Ey, Ez, Hx, Hy, Hz, t =\
     fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz, "ex",
                z_ind, output_step)
 
-print(Ex.shape)
-print(Ey.shape)
-print(Ez.shape)
-print(Hx.shape)
-print(Hy.shape)
-print(Hz.shape)
 x = x[1:]
 y = y[1:]
 #%% movie of Hx %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -101,6 +95,9 @@ titlestr = 'x-Component of Magnetic Field'
 cb_label = '$\\Re\\{Z_0H_x\\}$ [µV/m]'
 rel_color_range = 1/3
 fps = 10
+
+
+
 
 ani = Fdtd3DAnimation(x, y, t, F, titlestr, cb_label, rel_color_range, fps)
 plt.show()
@@ -111,6 +108,8 @@ titlestr = 'z-Component of Electric Field'
 cb_label = '$\\Re\\{E_z\\}$ [µV/m]'
 rel_color_range = 1/3
 fps = 10
+
+
 
 ani = Fdtd3DAnimation(x, y, t, F, titlestr, cb_label, rel_color_range, fps)
 plt.show()

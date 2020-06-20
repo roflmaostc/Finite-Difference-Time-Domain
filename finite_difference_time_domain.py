@@ -145,7 +145,7 @@ def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
     # size of the different dimensions
     Nx, Ny, Nz = eps_rel.shape
     jz_in = np.copy(jz)
-    dtype = np.complex128
+    dtype = np.complex64
     # speed of light [c]=m/s
     c = 2.99792458e8
     # vacuum permeability [mu0]=Vs/(Am)

@@ -5,6 +5,8 @@
 import numpy as np
 from finite_difference_time_domain import fdtd_1d, Fdtd1DAnimation
 from matplotlib import pyplot as plt
+import time 
+
 
 # dark bluered colormap, registers automatically with matplotlib on import
 import bluered_dark
@@ -49,8 +51,20 @@ source_pulse_length = 1e-15 # [s]
 eps_rel = n1 ** 2 * np.ones(Nx)
 # 
 eps_rel[x > x_interface] = n2 ** 2
-Ez, Hy, x, t = fdtd_1d(eps_rel, dx, time_span, source_frequency,
-                       source_position, source_pulse_length)
+
+
+
+times = []
+
+for _ in range(50):
+    a = time.time() 
+    Ez, Hy, x, t = fdtd_1d(eps_rel, dx, time_span, source_frequency,
+                           source_position, source_pulse_length)
+    b = time.time() - a 
+    times.append(b)
+
+print("Time elapsed {:.4f} in seconds".format(np.mean(times)))
+print("Time elapsed stdev {:.4f} in seconds".format(np.std(times) / np.sqrt(len(times))))
 
 
 # %% make video %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

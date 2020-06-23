@@ -8,7 +8,7 @@ import skimage.transform as skf
 import time
 
 def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
-            source_pulse_length):
+            source_pulse_length, dtype=np.complex64):
     '''Computes the temporal evolution of a pulsed excitation using the
     1D FDTD method. The temporal center of the pulse is placed at a
     simulation time of 3*source_pulse_length. The origin x=0 is in the
@@ -51,19 +51,19 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
     # choose dt small enough
     dt = dx / 2 / c
     # time array
-    t = np.arange(0, time_span, dt)
+    t = np.arange(0, time_span, dt, dtype=dtype)
 
     # create output x coordinates
     x_width = dx * len(eps_rel)
-    x = np.linspace(- x_width / 2, x_width / 2, len(eps_rel))
+    x = np.linspace(- x_width / 2, x_width / 2, len(eps_rel), dtype=dtype)
 
     # Ez and Hy are shifted half a index step
     # however, we represent them as a simple array
     # we just need to keep in mind that they are shifted by half a index step
     # create output electric Ez
-    Ez = np.zeros((len(t), len(x)), dtype=np.complex128)
+    Ez = np.zeros((len(t), len(x)), dtype=dtype)
     # create output magnetic Hy
-    Hy = np.zeros((len(t), len(x) - 1), dtype=np.complex128)
+    Hy = np.zeros((len(t), len(x) - 1), dtype=dtype)
 
     t0 = 3 * source_pulse_length
     x_index_center = np.argmax(x >= source_position)
@@ -72,7 +72,7 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
     def jz_f(n):
         # current time
         t = dt * (n)
-        jz = np.zeros(len(x), dtype=np.complex128)
+        jz = np.zeros(len(x), dtype=dtype)
         # set center to source
         jz[x_index_center] = np.exp(-2 * np.pi * 1j * source_frequency * t) *\
                              np.exp(-(t - t0) ** 2 / source_pulse_length ** 2)
@@ -104,7 +104,7 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
 
 
 def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
-            field_component, z_ind, output_step):
+            field_component, z_ind, output_step, dtype=np.complex128):
     '''Computes the temporal evolution of a pulsed spatially extended current
     source using the 3D FDTD method. Returns z-slices of the selected
     field at the given z-position every output_step time steps. The pulse
@@ -145,7 +145,6 @@ def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
     # size of the different dimensions
     Nx, Ny, Nz = eps_rel.shape
     jz_in = np.copy(jz)
-    dtype = np.complex64
     # speed of light [c]=m/s
     c = 2.99792458e8
     # vacuum permeability [mu0]=Vs/(Am)
@@ -264,14 +263,14 @@ def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
 
     # set the boundaries for H
     Hx_out[:, :, 1:, 1:] = Hx
-    Hx_out[:, :, :, 0] = - Hx_out[:, :, :, 0]
-    Hx_out[:, :, 0, :] = - Hx_out[:, :, 0, :]
+    Hx_out[:, :, :, 0] = - Hx_out[:, :, :, 1]
+    Hx_out[:, :, 0, :] = - Hx_out[:, :, 1, :]
     Hy_out[:, 1:, :, 1:] = Hy
-    Hy_out[:, :, :, 0] = - Hy_out[:, :, :, 0]
-    Hy_out[:, 0, :, :] = - Hy_out[:, 0, :, :]
+    Hy_out[:, :, :, 0] = - Hy_out[:, :, :, 1]
+    Hy_out[:, 0, :, :] = - Hy_out[:, 1, :, :]
     Hz_out[:, 1:, 1:, :] = Hz
-    Hz_out[:, :, 0, :] = - Hz_out[:, :, 0, :]
-    Hz_out[:, 0, :, :] = - Hz_out[:, 0, :, :]
+    Hz_out[:, :, 0, :] = - Hz_out[:, :, 1, :]
+    Hz_out[:, 0, :, :] = - Hz_out[:, 1, :, :]
 
     # interpolation of E
     Ex_out = 0.5 * (Ex_out[:, 1:, :, :] + Ex_out[:, :-1, :, :])

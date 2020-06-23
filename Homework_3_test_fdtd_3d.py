@@ -5,7 +5,7 @@
 import numpy as np
 from finite_difference_time_domain import fdtd_3d, Fdtd3DAnimation
 from matplotlib import pyplot as plt
-
+import time
 # dark bluered colormap, registers automatically with matplotlib on import
 import bluered_dark
 
@@ -75,22 +75,29 @@ jz = np.ones((1, 1, Nz)) * np.exp(- (np.reshape(y, (1, len(y), 1)) ** 2 +
 # jz = np.exp(- (np.reshape(x, (1, len(x))) ** 2 + 
 #                np.reshape(y, (len(y), 1)) ** 2) / source_width ** 2)
 
-print(jz.shape)
 # output parameters
 z_ind = midz  # z-index of field output
 output_step = 4  # time steps between field output
 
 #%% run simulations %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+times = []
+for _ in range(10):
+    a = time.time() 
+    Ex, Ey, Ez, Hx, Hy, Hz, t =\
+        fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz, "ex",
+                   z_ind, output_step)
+    b = time.time() - a 
+    times.append(b)
 
-Ex, Ey, Ez, Hx, Hy, Hz, t =\
-    fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz, "ex",
-               z_ind, output_step)
+print("Time elapsed {:.4f} in seconds".format(np.mean(times)))
+print("Time elapsed stdev {:.4f} in seconds".format(np.std(times) / np.sqrt(len(times))))
+
 
 x = x[1:]
 y = y[1:]
 #%% movie of Hx %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-F = Hx*Z0*1e6
+F = Hz*Z0*1e6
 titlestr = 'x-Component of Magnetic Field'
 cb_label = '$\\Re\\{Z_0H_x\\}$ [µV/m]'
 rel_color_range = 1/3
@@ -103,7 +110,7 @@ ani = Fdtd3DAnimation(x, y, t, F, titlestr, cb_label, rel_color_range, fps)
 plt.show()
 
 ##%% movie of Ez %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-F = Ez*1e6
+F = Hy*1e6
 titlestr = 'z-Component of Electric Field'
 cb_label = '$\\Re\\{E_z\\}$ [µV/m]'
 rel_color_range = 1/3

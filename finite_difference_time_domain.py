@@ -104,7 +104,7 @@ def fdtd_1d(eps_rel, dx, time_span, source_frequency, source_position,
 
 
 def fdtd_3d(eps_rel, dr, time_span, freq, tau, jx, jy, jz,
-            field_component, z_ind, output_step, dtype=np.complex128):
+            field_component, z_ind, output_step, dtype=np.complex64):
     '''Computes the temporal evolution of a pulsed spatially extended current
     source using the 3D FDTD method. Returns z-slices of the selected
     field at the given z-position every output_step time steps. The pulse

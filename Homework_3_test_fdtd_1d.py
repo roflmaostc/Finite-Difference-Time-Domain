@@ -56,7 +56,7 @@ eps_rel[x > x_interface] = n2 ** 2
 
 times = []
 
-for _ in range(50):
+for _ in range(1):
     a = time.time() 
     Ez, Hy, x, t = fdtd_1d(eps_rel, dx, time_span, source_frequency,
                            source_position, source_pulse_length)
